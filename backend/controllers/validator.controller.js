@@ -1,34 +1,30 @@
+import validator from 'validator';
 import dns from 'dns/promises';
+import { verifyEmail } from '@devmehq/email-validator-js';
 
 export const validateInputEmail = (reqBody) => {
     if (!reqBody || typeof reqBody !== 'object' || Array.isArray(reqBody)) {
-        const error = new Error('Request body must be a single JSON object.');
+        const error = new Error('Email failed to pass input validation test.');
         error.step = 'inputValidation';
         throw error;
     }
-
     const { email } = reqBody;
-
     if (!email || typeof email !== 'string' || !email.trim()) {
-        const error = new Error('A valid email is required.');
+        const error = new Error('Email failed to pass input validation test.');
         error.step = 'inputValidation';
         throw error;
     }
-
     if (email.includes(',') || email.includes(';') || email.trim().split(/\s+/).length > 1) {
-        const error = new Error('Only a single email address is allowed.');
+        const error = new Error('Email failed to pass input validation test.');
         error.step = 'inputValidation';
         throw error;
     }
-
     return email.trim();
 };
 
 export const validateEmailFormat = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailRegex.test(email)) {
-        const error = new Error('Invalid email format.');
+    if (!validator.isEmail(email)) {
+        const error = new Error('Email failed to pass syntax validation test.');
         error.step = 'syntaxValidation';
         throw error;
     }
@@ -38,12 +34,12 @@ export const validateDnsRecords = async (domain) => {
     try {
         const addresses = await dns.resolve(domain, 'A');
         if (!addresses.length) {
-            const error = new Error('Domain does not resolve to any IP address.');
+            const error = new Error('Email failed to pass dns record validation test.');
             error.step = 'dnsValidation';
             throw error;
         }
     } catch (err) {
-        const error = new Error(`DNS resolution failed: ${err.message}`);
+        const error = new Error('Email failed to pass dns record validation test.');
         error.step = 'dnsValidation';
         throw error;
     }
@@ -54,13 +50,27 @@ export const validateMxRecords = async (domain) => {
         const mxRecords = await dns.resolveMx(domain);
         const validMx = mxRecords.filter(record => record.exchange && record.exchange.trim());
         if (!validMx.length) {
-            const error = new Error('No valid MX records found for the domain.');
+            const error = new Error('Email failed to pass mx record validation test.');
             error.step = 'mxValidation';
             throw error;
         }
     } catch (err) {
-        const error = new Error(`MX records validation failed: ${err.message}`);
+        const error = new Error('Email failed to pass mx record validation test.');
         error.step = 'mxValidation';
         throw error;
     }
+};
+
+export const validateSMTPConnection = async (email) => {
+    const result = await verifyEmail({
+        emailAddress: email,
+        verifySmtp: true,
+        timeout: 3000,
+    });
+    if (result.validSmtp !== true) {
+        const error = new Error('Email failed to pass smtp validation test.');
+        error.step = 'smtpValidation';
+        throw error;
+    }
+    return result; 
 };

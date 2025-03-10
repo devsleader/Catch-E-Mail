@@ -1,1 +1,1 @@
-npm i nodemon express mongoose dotenv cors smtp-connection
+npm i nodemon express mongoose dotenv cors validator @devmehq/email-validator-js
